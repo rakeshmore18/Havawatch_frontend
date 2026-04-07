@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pollution Source Predictor</title>
+</head>
+<body>
+
+<h2>Enter Pollution Data</h2>
+
+<input id="pm25" placeholder="PM2.5"><br>
+<input id="pm10" placeholder="PM10"><br>
+<input id="no2" placeholder="NO2"><br>
+<input id="so2" placeholder="SO2"><br>
+<input id="co" placeholder="CO"><br>
+
+<button onclick="predict()">Predict</button>
+
+<h3 id="result"></h3>
+
+<script>
+async function predict() {
+    const data = {
+        "PM2.5": parseFloat(document.getElementById("pm25").value),
+        "PM10": parseFloat(document.getElementById("pm10").value),
+        "NO2": parseFloat(document.getElementById("no2").value),
+        "SO2": parseFloat(document.getElementById("so2").value),
+        "CO": parseFloat(document.getElementById("co").value)
+    };
+
+    const res = await fetch("http://localhost:3000/predict", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    document.getElementById("result").innerText =
+        "Predicted Source: " + result.source;
+}
+</script>
+
+</body>
+</html>

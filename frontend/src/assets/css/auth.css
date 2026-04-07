@@ -1,0 +1,96 @@
+.auth-page {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.split-screen {
+    display: flex;
+    height: 100%;
+}
+
+/* Left Panel - Hero Look */
+.auth-visual {
+    flex: 1.2;
+    background: linear-gradient(135deg, #002d62 0%, #0056b3 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    padding: 60px;
+    text-align: center;
+}
+
+.visual-content h2 { font-size: 3rem; margin-bottom: 20px; }
+.visual-content h2 span { color: var(--iq-green); }
+.visual-content p { font-size: 1.2rem; opacity: 0.9; line-height: 1.5; }
+
+/* Right Panel - Form */
+.auth-form-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+}
+
+.form-box { width: 100%; max-width: 400px; padding: 20px; }
+
+.tab-toggle {
+    display: flex;
+    background: var(--bg-light);
+    padding: 5px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+}
+
+.tab-toggle button {
+    flex: 1;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #666;
+    background: transparent;
+    transition: 0.3s;
+}
+
+.tab-toggle button.active {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    color: var(--iq-blue);
+}
+
+.form-box header h1 { font-size: 1.8rem; color: var(--iq-blue); margin-bottom: 8px; }
+.form-box header p { color: #777; font-size: 0.95rem; margin-bottom: 25px; }
+
+.input-group { margin-bottom: 18px; }
+.input-group label { display: block; font-size: 0.85rem; margin-bottom: 6px; color: #444; font-weight: 600; }
+.input-group input, .input-group select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 1rem;
+}
+
+.btn-submit {
+    width: 100%;
+    background: var(--iq-blue);
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.3s;
+}
+
+.btn-submit:hover { background: #00408d; }
+
+@media (max-width: 768px) {
+    .auth-visual { display: none; }
+}
