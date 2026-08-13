@@ -35,31 +35,76 @@ All three are deployed independently on Vercel, with MongoDB Atlas as the databa
 ## Architecture
 
 ```
-                        ┌─────────────────────────────┐
-                        │      React Frontend          │
-                        │   (havawatch.vercel.app)     │
-                        └────────────┬────────────────┘
-                                     │ REST API calls
-                        ┌────────────▼────────────────┐
-                        │    Node.js + Express         │
-                        │  (havawatch-bk.vercel.app)  │
-                        └──┬──────────┬───────────────┘
-                           │          │
-            ┌──────────────▼──┐   ┌──▼──────────────────┐
-            │  MongoDB Atlas  │   │  Python ML Service   │
-            │  (Users, Alerts)│   │ (havawatch-ml.vercel)│
-            └─────────────────┘   └──────────────────────┘
-                                          │
-                           ┌──────────────▼──────────────┐
-                           │   RandomForest Classifier    │
-                           │  Vehicular / Industrial /    │
-                           │  Natural / Construction      │
-                           └─────────────────────────────┘
-
-External APIs used:
-  - AQICN / WAQI  →  city AQI by name
-  - OpenWeatherMap →  AQI by coordinates + 30h history
-  - ipapi.co       →  IP-based location detection
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │                        USER BROWSER                                  │
+  │                                                                      │
+  │   ┌────────────────────────────────────────────────────────────┐    │
+  │   │              React 18 + Vite  Frontend                      │    │
+  │   │              havawatch.vercel.app                           │    │
+  │   │                                                             │    │
+  │   │  Pages: Home · Dashboard · Analytics · Map · Profile · Learn│    │
+  │   │  Charts: Chart.js (AQI line, ML pie)                       │    │
+  │   │  Map: Leaflet (global station markers)                      │    │
+  │   │  Auth: JWT stored in localStorage                           │    │
+  │   │  Real-time: Socket.IO client (live AQI updates)            │    │
+  │   └──────────────┬──────────────────────────────┬──────────────┘    │
+  │                  │ REST API                      │ IP Location        │
+  └──────────────────┼───────────────────────────────┼────────────────────┘
+                     │                               │
+                     │                        ┌──────▼──────┐
+                     │                        │  ipapi.co   │
+                     │                        │ (Geo Locate)│
+                     │                        └─────────────┘
+                     │
+  ┌──────────────────▼──────────────────────────────────────────────────┐
+  │                  Node.js + Express  Backend                          │
+  │                  havawatch-bk.vercel.app  · Port 5000               │
+  │                                                                      │
+  │  ┌──────────────┐  ┌─────────────────┐  ┌────────────────────────┐ │
+  │  │  JWT Auth    │  │   REST Routes   │  │  Socket.IO Server      │ │
+  │  │  Middleware  │  │  /api/signup    │  │  emits: liveAqiUpdate  │ │
+  │  │  bcrypt hash │  │  /api/login     │  │  on: IoT sensor POST   │ │
+  │  └──────┬───────┘  │  /api/analyze  │  └────────────────────────┘ │
+  │         │           │  /api/predict  │                              │
+  │         │           │  /api/alerts   │                              │
+  │         │           └────────┬────────┘                             │
+  └─────────┼────────────────────┼─────────────────────────────────────┘
+            │                    │
+    ┌───────▼──────┐    ┌────────┼────────────────────────────┐
+    │ MongoDB Atlas│    │        │  External APIs              │
+    │              │    │  ┌─────▼──────────┐                 │
+    │  Users       │    │  │ AQICN / WAQI   │                 │
+    │  Scan History│    │  │ (city AQI)     │                 │
+    │  Alerts      │    │  └────────────────┘                 │
+    └──────────────┘    │  ┌────────────────┐                 │
+                        │  │ OpenWeatherMap │                 │
+                        │  │ (lat/lon AQI + │                 │
+                        │  │  30h history)  │                 │
+                        │  └────────────────┘                 │
+                        └─────────────────────────────────────┘
+                                    │
+                                    │ POST pollution data
+                                    │
+  ┌─────────────────────────────────▼───────────────────────────────────┐
+  │               Python ML Service · havawatch-ml.vercel.app           │
+  │                                                                      │
+  │   ┌───────────────────────┐     ┌──────────────────────────────┐   │
+  │   │  Flask  (/predict)    │     │  FastAPI (/api/predict)      │   │
+  │   │  used by predict-latlon│    │  used by analyze + analyze-  │   │
+  │   │  route                │     │  live-city routes            │   │
+  │   └──────────┬────────────┘     └──────────────┬───────────────┘   │
+  │              │                                  │                   │
+  │              └──────────────┬───────────────────┘                   │
+  │                             │                                       │
+  │              ┌──────────────▼──────────────────┐                   │
+  │              │     RandomForestClassifier       │                   │
+  │              │     Input: PM2.5, PM10,          │                   │
+  │              │            NO₂, SO₂, CO          │                   │
+  │              │     Output: dominant_cause        │                   │
+  │              │             confidence %          │                   │
+  │              │             contribution dict     │                   │
+  │              └─────────────────────────────────-┘                   │
+  └──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
