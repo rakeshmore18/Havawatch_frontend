@@ -1,149 +1,138 @@
-<div align="center">
+# 🌬️ HavaWatch — Air Quality Intelligence Platform
 
-<h1>🌬️ HavaWatch</h1>
-<p><strong>AI-Powered Air Quality Intelligence Platform</strong></p>
+HavaWatch is a web app I built to detect the **source of air pollution** using machine learning. You type a city name (or let it auto-detect your location), and it tells you whether the pollution is coming from vehicles, industries, construction, or natural sources — along with live AQI data and a 30-hour history chart.
 
-<p>
-  <img src="https://img.shields.io/badge/Status-Live%20%26%20Deployed-brightgreen?style=flat-square" alt="Status" />
-  <img src="https://img.shields.io/badge/ML%20Accuracy-94.2%25-blue?style=flat-square" alt="ML Accuracy" />
-  <img src="https://img.shields.io/badge/Stack-React%20%7C%20Node.js%20%7C%20Python-informational?style=flat-square" alt="Stack" />
-</p>
+It's fully deployed on Vercel and backed by real sensor data from OpenWeatherMap and AQICN.
 
-<p>
-  <a href="https://havawatch.vercel.app" target="_blank"><strong>🌐 Live Demo</strong></a> &nbsp;|&nbsp;
-  <a href="./frontend/"><strong>⚛️ Frontend</strong></a> &nbsp;|&nbsp;
-  <a href="./backend/"><strong>🖥️ Backend</strong></a> &nbsp;|&nbsp;
-  <a href="./ml_service/"><strong>🧠 ML Service</strong></a>
-</p>
-
-</div>
+🌐 **Live:** [havawatch.vercel.app](https://havawatch.vercel.app)
 
 ---
 
-HavaWatch is a full-stack Air Quality platform that uses a **Random Forest ML model** to detect the dominant source of air pollution (Vehicular, Industrial, Natural, Construction) in real time. It integrates live sensor data from global APIs, shows historical AQI charts, and dispatches authority alerts — all deployed on Vercel.
+## What it does
+
+- Detects your city via GPS or IP, then fetches live AQI
+- Uses a **Random Forest ML model** (94.2% accuracy) to predict the dominant pollution cause
+- Shows a 30-hour AQI history chart
+- Lets you dispatch alerts to local authorities
+- Has a full user auth system (signup/login with JWT)
+- Real-time IoT sensor streaming via Socket.IO
+- Interactive world map with air quality markers
 
 ---
 
-## ✨ Key Features
+## How it's built
 
-- 🤖 **AI Pollution Source Detection** — identifies dominant cause with confidence scores
-- 📍 **GPS Auto-Sync** — detects your location via IP and fetches live AQI
-- 🔍 **City Search** — search any city worldwide for live AQI + ML analysis
-- 📈 **30-Hour AQI Chart** — historical trajectory from OpenWeatherMap
-- 🚨 **Alert Dispatch** — sends pollution alerts to authorities (stored in MongoDB)
-- 🔐 **JWT Auth** — secure signup/login with bcrypt password hashing
-- 🗺️ **Interactive Map** — Leaflet-powered global air quality atlas
-- ⚡ **Real-Time Streaming** — Socket.IO for live IoT sensor data
+The project has three separate services:
+
+- **Frontend** — React 18 + Vite (`./frontend/`)
+- **Backend** — Node.js + Express API (`./backend/`)
+- **ML Service** — Python Flask + FastAPI (`./ml_service/`)
+
+All three are deployed independently on Vercel, with MongoDB Atlas as the database.
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture
 
 ```
-Browser (React) ──→ Node.js Backend ──→ Python ML Service
-                         │                   │
-                    MongoDB Atlas       RandomForest Model
-                         │
-              External APIs (AQICN, OpenWeatherMap, ipapi.co)
-```
+                        ┌─────────────────────────────┐
+                        │      React Frontend          │
+                        │   (havawatch.vercel.app)     │
+                        └────────────┬────────────────┘
+                                     │ REST API calls
+                        ┌────────────▼────────────────┐
+                        │    Node.js + Express         │
+                        │  (havawatch-bk.vercel.app)  │
+                        └──┬──────────┬───────────────┘
+                           │          │
+            ┌──────────────▼──┐   ┌──▼──────────────────┐
+            │  MongoDB Atlas  │   │  Python ML Service   │
+            │  (Users, Alerts)│   │ (havawatch-ml.vercel)│
+            └─────────────────┘   └──────────────────────┘
+                                          │
+                           ┌──────────────▼──────────────┐
+                           │   RandomForest Classifier    │
+                           │  Vehicular / Industrial /    │
+                           │  Natural / Construction      │
+                           └─────────────────────────────┘
 
-| Service | URL |
-|---|---|
-| 🌐 Frontend | [havawatch.vercel.app](https://havawatch.vercel.app) |
-| 🖥️ Backend API | [havawatch-bk.vercel.app](https://havawatch-bk.vercel.app) |
-| 🧠 ML Service | [havawatch-ml.vercel.app](https://havawatch-ml.vercel.app) |
-
----
-
-## 📁 Project Structure
-
-```
-AQI/
-├── frontend/          ← React 18 + Vite SPA
-├── backend/           ← Node.js + Express API
-├── ml_service/        ← Python ML (Flask + FastAPI)
-└── package.json       ← Root orchestrator
+External APIs used:
+  - AQICN / WAQI  →  city AQI by name
+  - OpenWeatherMap →  AQI by coordinates + 30h history
+  - ipapi.co       →  IP-based location detection
 ```
 
 ---
 
-## 🚀 Getting Started
+## Running locally
 
-### Prerequisites
-
-- Node.js v18+, Python 3.9+, MongoDB Atlas account
-- [AQICN API token](https://aqicn.org/data-platform/token/)
-- [OpenWeatherMap API key](https://openweathermap.org/api)
-
-### Setup
+You'll need Node.js 18+, Python 3.9+, a MongoDB Atlas URI, and API keys for AQICN and OpenWeatherMap.
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/your-username/havawatch.git
-cd havawatch
+# Clone
+git clone https://github.com/rakeshmore18/Havawatch_frontend.git
+cd Havawatch_frontend
 
-# 2. Install dependencies
+# Install dependencies
 npm install
 cd backend && npm install && cd ..
 cd frontend && npm install && cd ..
 cd ml_service && pip install -r requirements.txt && cd ..
 
-# 3. Train the ML model (first time only)
-cd ml_service && python train_model.py
+# Train the ML model (only needed once)
+cd ml_service
+python train_model.py
 
-# 4. Add your API keys in backend/server.js
-#    AQICN_TOKEN, OpenWeatherMap KEY, MongoDB URI
+# Add your API keys in backend/server.js
+# AQICN_TOKEN, OpenWeatherMap KEY, MongoDB URI
 
-# 5. Run all services
+# Start everything
 npm run dev
 ```
 
-Open **http://localhost:5173** in your browser.
+Then open **http://localhost:5173**.
 
 ---
 
-## 🔌 API Endpoints
+## Project structure
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/signup` | Register a new user |
-| `POST` | `/api/login` | Login → returns JWT |
-| `POST` | `/api/analyze-live-city` | Live AQI + ML analysis by city name |
-| `POST` | `/api/predict-latlon` | AQI + 30h history by coordinates |
-| `POST` | `/api/alerts/send` | Dispatch a pollution alert |
-| `POST/GET` | `/api/user/history` *(JWT)* | Save / retrieve scan history |
+```
+├── frontend/        → React app (pages, components, charts)
+├── backend/         → Express API, auth, Socket.IO, DB
+├── ml_service/      → Flask + FastAPI ML servers, model files
+└── package.json     → Runs all three services together
+```
 
 ---
 
-## 🧠 ML Model
+## ML model
 
-- **Algorithm:** RandomForestClassifier (scikit-learn)
+The model is a `RandomForestClassifier` trained on a labeled dataset of pollution readings. It takes PM2.5, PM10, NO₂, SO₂, and CO as inputs (plus a few engineered ratio features) and classifies the dominant source.
+
 - **Accuracy:** 94.2%
-- **Inputs:** PM2.5, PM10, NO₂, SO₂, CO + engineered ratios
-- **Output classes:** Vehicular Emissions · Industrial · Natural · Construction
+- **Classes:** Vehicular Emissions, Industrial, Natural, Construction
+- **Served via:** Flask (`/predict`) and FastAPI (`/api/predict`)
 
 ---
 
-## ☁️ Deployment
+## Deployment
 
-Each service deploys independently to Vercel:
+Each service has its own `vercel.json` and deploys independently:
 
 ```bash
-cd frontend  && vercel --prod
-cd backend   && vercel --prod
+cd frontend   && vercel --prod
+cd backend    && vercel --prod
 cd ml_service && vercel --prod
 ```
 
-> **Note:** Commit `.pkl` model files before deploying the ML service.
+> Make sure the `.pkl` model files are committed before deploying the ML service.
 
 ---
 
-## 📜 Disclaimer
+## Disclaimer
 
-HavaWatch uses ML models and third-party sensor data. Results may occasionally be inaccurate due to sensor calibration or data latency. **Always follow local health authority guidelines.**
+This app uses ML predictions and third-party sensor data, so results aren't always 100% accurate. Always follow official health guidelines for serious air quality concerns.
 
 ---
 
-<div align="center">
-  <p>Made with ❤️ by the HavaWatch Team · © 2026 HavaWatch Intelligent Systems</p>
-</div>
+Made by Rakesh More · 2026
