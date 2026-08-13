@@ -19,22 +19,22 @@ const Home = () => {
             <header className="hero-ultra">
                 <div className="hero-bg-grid"></div>
                 <div className="hero-glow"></div>
-                
+
                 <div className="hero-content">
                     <div className="hero-badge-ultra">
                         <span className="pulse-dot"></span> Live Model Accuracy: 94.2%
                     </div>
-                    
+
                     <h1 className="hero-title-ultra">
                         Predict the air <br />
                         before you <span>breathe it.</span>
                     </h1>
-                    
+
                     <p className="hero-desc-ultra">
-                        HavaWatch uses spatial neural arrays to predict pollution sources in real-time. 
+                        HavaWatch uses spatial neural arrays to predict pollution sources in real-time.
                         Don't just track AQI. Understand what's causing it.
                     </p>
-                    
+
                     <div className="hero-actions-ultra">
                         <Link to="/auth" className="btn-glowing">Initiate Secure Access</Link>
                         <Link to="/map" className="btn-outline-dark">Explore Global Network</Link>
@@ -52,19 +52,19 @@ const Home = () => {
                         <div className="mockup-body">
                             <div className="mb-col">
                                 <div className="mb-lbl">Particulate 2.5</div>
-                                <div className="mb-val" style={{ color: '#ef4444' }}>148<span style={{fontSize:'1rem'}}>µg</span></div>
+                                <div className="mb-val" style={{ color: '#ef4444' }}>148<span style={{ fontSize: '1rem' }}>µg</span></div>
                                 <div className="mb-lbl" style={{ color: '#ef4444' }}>Critical Alert</div>
                             </div>
                             <div className="mb-col" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                 <div className="mb-lbl">Source Prediction Matrix</div>
-                                <div><span style={{color:'#1e293b', fontWeight:'bold'}}>84%</span> Traffic Congestion</div>
+                                <div><span style={{ color: '#1e293b', fontWeight: 'bold' }}>84%</span> Traffic Congestion</div>
                                 <div className="mb-bar"><div className="mb-fill" style={{ width: '84%', background: '#ef4444' }}></div></div>
-                                <div style={{marginTop:'10px'}}><span style={{color:'#1e293b', fontWeight:'bold'}}>12%</span> Industry</div>
+                                <div style={{ marginTop: '10px' }}><span style={{ color: '#1e293b', fontWeight: 'bold' }}>12%</span> Industry</div>
                                 <div className="mb-bar"><div className="mb-fill" style={{ width: '12%', background: '#f59e0b' }}></div></div>
                             </div>
                             <div className="mb-col">
                                 <div className="mb-lbl">Node Ping</div>
-                                <div className="mb-val" style={{ color: '#10b981' }}>24<span style={{fontSize:'1rem'}}>ms</span></div>
+                                <div className="mb-val" style={{ color: '#10b981' }}>24<span style={{ fontSize: '1rem' }}>ms</span></div>
                                 <div className="mb-lbl">Secure</div>
                             </div>
                         </div>
@@ -95,8 +95,8 @@ const Home = () => {
                         {/* Interactive Text Blocks */}
                         <div className="hci-text-blocks">
                             {tabs.map((tab, index) => (
-                                <div 
-                                    key={index} 
+                                <div
+                                    key={index}
                                     className={`hci-block ${activeTab === index ? 'active' : ''}`}
                                     onClick={() => setActiveTab(index)}
                                 >
@@ -117,12 +117,12 @@ const Home = () => {
                                 </>
                             )}
                             {activeTab === 1 && (
-                                <h3 style={{ color: '#10b981', position: 'absolute', fontFamily: 'monospace', fontSize: '1.5rem', background: 'rgba(16, 185, 129, 0.1)', padding:'10px 20px', borderRadius:'10px' }}>
+                                <h3 style={{ color: '#10b981', position: 'absolute', fontFamily: 'monospace', fontSize: '1.5rem', background: 'rgba(16, 185, 129, 0.1)', padding: '10px 20px', borderRadius: '10px' }}>
                                     model.predict(X_test)
                                 </h3>
                             )}
                             {activeTab === 2 && (
-                                <div style={{ background: '#e0f2fe', padding: '20px', borderRadius: '15px', color: '#0369a1', border: '1px solid #7dd3fc', fontWeight:'700', zIndex: 10 }}>
+                                <div style={{ background: '#e0f2fe', padding: '20px', borderRadius: '15px', color: '#0369a1', border: '1px solid #7dd3fc', fontWeight: '700', zIndex: 10 }}>
                                     ✅ Safe to go outside.
                                 </div>
                             )}
@@ -178,21 +178,22 @@ const Home = () => {
                     </div>
                 </div>
             </section>
-
+            <div className="disclaimer-box" data-aos="fade-up">
+                <span className="disclaimer-icon">⚠️</span>
+                <p>
+                    <strong>Disclaimer:</strong> HavaWatch uses machine learning models and third-party sensor data to provide pollution insights.
+                    While we strive for high accuracy, the system may occasionally provide incorrect results or "false positives" due to sensor
+                    calibration issues, data latency, or unpredictable environmental factors. Always follow local health authority guidelines.
+                </p>
+            </div>
             {/* 6. MEGA FOOTER (STAYS DARK FOR CONTRAST) */}
             <footer className="footer-mega">
                 <div className="footer-grid">
                     <div className="footer-brand">
                         <h2>Hava<span>Watch</span></h2>
                         <p>The definitive source for predictive atmospheric telemetry and AI-driven mitigation strategies.</p>
-                        
-                        <div style={{ marginTop: '20px' }}>
-                            <h4 style={{ color: 'white', marginBottom: '10px', fontSize: '1rem' }}>Get the Research Report</h4>
-                            <div className="sub-form">
-                                <input type="email" placeholder="Enterprise email address" />
-                                <button>Download</button>
-                            </div>
-                        </div>
+
+
                     </div>
 
                     <div className="f-menu">
@@ -223,7 +224,7 @@ const Home = () => {
                         </ul>
                     </div>
                 </div>
-                
+
                 <div className="footer-bottom">
                     <p>&copy; 2026 HavaWatch Intelligent Systems. All rights guarded.</p>
                     <p>Designed with strictly enforced HCI heuristics.</p>

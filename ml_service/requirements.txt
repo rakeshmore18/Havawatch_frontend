@@ -4,3 +4,4 @@ joblib
 fastapi
 uvicorn
 numpy
+Flask

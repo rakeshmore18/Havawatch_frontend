@@ -10,16 +10,19 @@ const User = require('./models/User');
 
 const app = express();
 
+const ML_URL = process.env.NODE_ENV === 'production' ? 'https://havawatch-ml.vercel.app' : 'http://127.0.0.1:8001';
+
 // Middleware
 app.use(express.json());
-app.use(cors());
+const allowedOrigins = ["https://havawatch.vercel.app", "http://localhost:5173", "http://127.0.0.1:5173"];
+app.use(cors({ origin: allowedOrigins }));
 
 // ==========================================
 // REAL-TIME SOCKET.IO SETUP
 // ==========================================
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: "http://localhost:5173" } // Connects to your Vite React frontend
+    cors: { origin: "https://havawatch.vercel.app" } // Connects to your Vite React frontend
 });
 
 // Secret key for JWT
@@ -28,7 +31,7 @@ const JWT_SECRET = "havawatch_super_secret_key_2026";
 // ==========================================
 // MONGODB CONNECTION
 // ==========================================
-mongoose.connect('mongodb://127.0.0.1:27017/havawatch')
+mongoose.connect('mongodb+srv://rakesh18:180805@havawatch.kblvoku.mongodb.net/?appName=Havawatch')
     .then(() => console.log("✅ MongoDB Connected Successfully"))
     .catch(err => console.log("❌ MongoDB Connection Error: ", err));
 
@@ -91,7 +94,7 @@ app.post('/api/analyze-live-city', async (req, res) => {
         const { city } = req.body;
 
         // 🛑 PASTE YOUR AQICN TOKEN HERE 🛑
-        const AQICN_TOKEN = "YOUR_WAQI_API_TOKEN_HERE";
+        const AQICN_TOKEN = "59a8f55e80d1f1554a362b6bc12785f9";
 
         // Fetch live data from AQICN
         const waqiUrl = `https://api.waqi.info/feed/${city}/?token=${AQICN_TOKEN}`;
@@ -115,8 +118,8 @@ app.post('/api/analyze-live-city', async (req, res) => {
             hour: new Date().getHours()
         };
 
-        // Send to Python AI (Ensure Python is running on port 8000)
-        const pythonResponse = await axios.post("http://127.0.0.1:8000/predict", modelInput);
+        // Send to Python AI
+        const pythonResponse = await axios.post(`${ML_URL}/api/predict`, modelInput);
         const aiResult = pythonResponse.data;
 
         // Return combined data to React
@@ -142,7 +145,7 @@ app.post('/api/analyze', async (req, res) => {
         const { pm25, pm10, no2, so2, co, o3, hour } = req.body;
 
         // Send data to Python API
-        const response = await axios.post("http://127.0.0.1:8000/predict", {
+        const response = await axios.post(`${ML_URL}/api/predict`, {
             pm25, pm10, no2, so2, co, o3, hour
         });
 
@@ -178,6 +181,17 @@ app.post('/api/predict-latlon', async (req, res) => {
         const url = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${KEY}`;
         const response = await axios.get(url);
 
+        let cityName = "Unknown Location";
+        try {
+            const geoUrl = `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${KEY}`;
+            const geoRes = await axios.get(geoUrl);
+            if (geoRes.data && geoRes.data.length > 0) {
+                cityName = geoRes.data[0].name;
+            }
+        } catch (geoErr) {
+            console.error("Geocoding error:", geoErr.message);
+        }
+
         if (!response.data || !response.data.list || response.data.list.length === 0) {
             return res.status(404).json({ error: "Could not retrieve pollution data for this location." });
         }
@@ -193,18 +207,41 @@ app.post('/api/predict-latlon', async (req, res) => {
             "CO": (p.co / 1000) || 0
         };
 
-        // Send to Python AI (app.py running on port 8001)
+        // Send to Python AI
         const predictionResponse = await axios.post(
-            "http://localhost:8001/predict",
+            `${ML_URL}/predict`,
             cleanData
         );
 
+        // Fetch Historical Data (Last 30 hours for the trajectory chart)
+        const end = Math.floor(Date.now() / 1000);
+        const start = end - (30 * 60 * 60); // 30 hours ago
+        const historyUrl = `https://api.openweathermap.org/data/2.5/air_pollution/history?lat=${lat}&lon=${lon}&start=${start}&end=${end}&appid=${KEY}`;
+
+        let history = [];
+        try {
+            const historyResponse = await axios.get(historyUrl);
+            if (historyResponse.data && historyResponse.data.list) {
+                // Return the last 30 hours of data
+                history = historyResponse.data.list.slice(-30).map(item => ({
+                    dt: item.dt,
+                    aqi: item.main.aqi,
+                    components: item.components
+                }));
+            }
+        } catch (hErr) {
+            console.error("History fetch error:", hErr.message);
+        }
+
         res.json({
             success: true,
+            city_name: cityName,
             pollution_data: cleanData,
             live_aqi: response.data.list[0].main.aqi || 2, // fallback
-            predicted_cause: predictionResponse.data
+            predicted_cause: predictionResponse.data,
+            history: history
         });
+
 
     } catch (error) {
         console.error("Predict Lat/Lon Error:", error.message);
@@ -242,7 +279,7 @@ app.post('/api/sensor-data', async (req, res) => {
     const incomingData = req.body;
 
     try {
-        const pythonResponse = await axios.post('http://127.0.0.1:8000/predict', incomingData);
+        const pythonResponse = await axios.post(`${ML_URL}/api/predict`, incomingData);
         const prediction = pythonResponse.data;
 
         const enrichedData = {
@@ -255,6 +292,52 @@ app.post('/api/sensor-data', async (req, res) => {
     } catch (error) {
         console.error("Hardware Sensor Error:", error.message);
         res.status(500).send("Processing failed");
+    }
+});
+
+// ==========================================
+// 6. USER HISTORY ROUTES (For Profile Section)
+// ==========================================
+
+// Helper middleware to authenticate JWT
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.sendStatus(401);
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403);
+        req.user = user;
+        next();
+    });
+};
+
+app.post('/api/user/history', authenticateToken, async (req, res) => {
+    try {
+        const { cause, aqi, city } = req.body;
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        user.history.push({ cause, aqi, city });
+        await user.save();
+
+        res.status(200).json({ success: true, message: 'History saved successfully' });
+    } catch (error) {
+        console.error("Save History Error:", error.message);
+        res.status(500).json({ error: 'Server error saving history' });
+    }
+});
+
+app.get('/api/user/history', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        // Return latest history first
+        res.status(200).json(user.history.sort((a, b) => b.date - a.date));
+    } catch (error) {
+        console.error("Get History Error:", error.message);
+        res.status(500).json({ error: 'Server error retrieving history' });
     }
 });
 

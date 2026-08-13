@@ -1,0 +1,20 @@
+{
+  "name": "aqi",
+  "version": "1.0.0",
+  "main": "index.js",
+ "scripts": {
+  "dev": "concurrently \"npm run backend\" \"npm run frontend\" \"npm run ml\"",
+  "start": "concurrently \"npm run backend\" \"npm run frontend\" \"npm run ml\"",
+  "backend": "cd backend && npm run dev",
+  "frontend": "cd frontend && npm run dev",
+  "ml": "cd ml_service && python app.py"
+},
+
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

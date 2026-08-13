@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
+import { API_URL } from '../config';
 const Auth = () => {
     const navigate = useNavigate();
-    
+
     // Toggle between Login and Sign Up modes
     const [isLoginMode, setIsLoginMode] = useState(false);
-    
+    const [agreed, setAgreed] = useState(false);
     // Store what the user types in the boxes
     const [formData, setFormData] = useState({
         fullName: '',
-        city: 'Nashik',
+        city: '',
         email: '',
         password: ''
     });
-    
+
     // Store error messages from the backend
     const [errorMessage, setErrorMessage] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -32,7 +32,7 @@ const Auth = () => {
 
         // Decide which backend URL to hit based on the mode
         const endpoint = isLoginMode ? '/api/login' : '/api/signup';
-        const url = `http://localhost:5000${endpoint}`;
+        const url = `${API_URL}${endpoint}`;
 
         try {
             const response = await fetch(url, {
@@ -48,16 +48,16 @@ const Auth = () => {
                     // 1. Save the secure token to the browser
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    
+
                     // 2. TELEPORT THE USER TO THE PROFILE PAGE!
-                    navigate('/profile'); 
-                    
+                    navigate('/profile');
+
                 } else {
                     // SIGNUP SUCCESS: Alert user and switch to login mode
                     alert("Account created successfully! Please log in.");
                     setIsLoginMode(true);
                 }
-            
+
             } else {
                 // Backend sent an error (like "Email already exists")
                 setErrorMessage(data.message);
@@ -75,8 +75,8 @@ const Auth = () => {
             <div className="auth-visual">
                 <div className="auth-visual-overlay"></div>
                 <div className="auth-visual-content">
-                    <h2>Advanced Atmospheric Intelligence.</h2>
-                    <p>Secure your access to real-time predictive pollution telemetry and localized deep-learning modeling.</p>
+                    <h2>Track Your Local Air Quality.</h2>
+                    <p>Sign in to check live air quality, track pollution causes, and stay healthy.</p>
                 </div>
             </div>
 
@@ -86,11 +86,11 @@ const Auth = () => {
                     &larr; Back to Platform
                 </Link>
 
-                <h2>{isLoginMode ? 'Welcome Back' : 'Create Portal Access'}</h2>
+                <h2>{isLoginMode ? 'Welcome Back' : 'Create Account'}</h2>
                 <p className="subtitle">
-                    {isLoginMode ? 'Enter your credentials to access your dashboard.' : 'Register for global monitoring synchronization.'}
+                    {isLoginMode ? 'Enter your details to access your dashboard.' : 'Register to start tracking air pollution in your city.'}
                 </p>
-                
+
                 {errorMessage && (
                     <div style={{ backgroundColor: '#fee2e2', color: '#ef4444', padding: '12px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.9rem', fontWeight: '500' }}>
                         {errorMessage}
@@ -105,19 +105,14 @@ const Auth = () => {
                                 <input type="text" name="fullName" value={formData.fullName} onChange={handleChange} required placeholder="John Doe" />
                             </div>
                             <div className="input-group">
-                                <label>Monitoring Region</label>
-                                <select name="city" value={formData.city} onChange={handleChange} style={{ padding: '15px 20px', borderRadius: '12px', border: '1px solid #cbd5e1', outline: 'none' }}>
-                                    <option value="Mumbai">Mumbai Sector</option>
-                                    <option value="Pune">Pune Sector</option>
-                                    <option value="Nashik">Nashik Sector</option>
-                                    <option value="Nagpur">Nagpur Sector</option>
-                                </select>
+                                <label>City</label>
+                                <input type="text" name="city" value={formData.city} onChange={handleChange} required placeholder="e.g. Mumbai, New York" />
                             </div>
                         </>
                     )}
 
                     <div className="input-group">
-                        <label>Secure Email</label>
+                        <label>Email Address</label>
                         <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="user@domain.com" />
                     </div>
 
@@ -125,9 +120,8 @@ const Auth = () => {
                         <label>Password</label>
                         <input type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="••••••••" />
                     </div>
-
                     <button type="submit" disabled={isLoading} className="auth-submit-btn">
-                        {isLoading ? 'Authenticating...' : (isLoginMode ? 'Secure Login' : 'Register Account')}
+                        {isLoading ? 'Logging in...' : (isLoginMode ? 'Log In' : 'Sign Up')}
                     </button>
                 </form>
 

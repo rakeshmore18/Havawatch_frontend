@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.env
+.pytest_cache/
+.coverage
+
+# Machine Learning Models and Data
+*.tsv
+*.h5
+*.hdf5
+*.joblib
+*.npy
+*.npz

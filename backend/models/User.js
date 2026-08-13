@@ -5,7 +5,14 @@ const UserSchema = new mongoose.Schema({
     city: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    
+    history: [{
+        cause: String,
+        aqi: Number,
+        city: String,
+        date: { type: Date, default: Date.now }
+    }]
 });
 
 // THIS IS THE CRITICAL LINE THAT WAS MISSING OR TYPO'D:

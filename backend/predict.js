@@ -32,11 +32,4 @@ async function getPollutionPrediction(lat, lon) {
     }
 }
 
-// 🔥 Direct Call for Nashik
-getPollutionPrediction(19.9975, 73.7898)
-    .then(result => {
-        console.log("🌍 Result:", result);
-    })
-    .catch(err => {
-        console.error("❌ Error:", err.message);
-    });
+module.exports = { getPollutionPrediction };
