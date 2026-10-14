@@ -9,6 +9,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGO_URI
-        sync: false  # Set manually in Render dashboard
+        value: mongodb+srv://mahiresahil_db_user:rakesh_more@cluster0.lvkazyy.mongodb.net/havawatch?retryWrites=true&w=majority&appName=Cluster0
       - key: JWT_SECRET
-        sync: false  # Set manually in Render dashboard
+        value: havawatch_super_secret_key_2026
