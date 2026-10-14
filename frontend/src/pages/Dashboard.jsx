@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Line, Pie } from 'react-chartjs-2';
 import 'chart.js/auto';
@@ -82,6 +83,34 @@ const generateContribution = (dominantCause, cityName = '') => {
     return result;
 };
 
+// ==========================================
+// HELPERS: AQI color + Country flag
+// ==========================================
+const getAqiBadgeColor = (aqi) => {
+    if (aqi <= 50)  return { bg: '#10b981', text: '#fff' };
+    if (aqi <= 100) return { bg: '#f59e0b', text: '#fff' };
+    if (aqi <= 150) return { bg: '#f97316', text: '#fff' };
+    if (aqi <= 200) return { bg: '#ef4444', text: '#fff' };
+    if (aqi <= 300) return { bg: '#8b5cf6', text: '#fff' };
+    return { bg: '#7f1d1d', text: '#fff' };
+};
+
+const countryFlag = (code) => {
+    if (!code || code.length !== 2) return '🌍';
+    return code.toUpperCase().replace(/./g, ch =>
+        String.fromCodePoint(127397 + ch.charCodeAt(0))
+    );
+};
+
+// ==========================================
+// AQICN STATION SEARCH
+// ==========================================
+const searchStations = async (query) => {
+    const res = await fetch(`${API_URL}/api/search-stations?q=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    return data.stations || [];
+};
+
 const Dashboard = () => {
     // Dashboard Data States
     const [loading, setLoading] = useState(false);
@@ -92,6 +121,14 @@ const Dashboard = () => {
     const [cityName, setCityName] = useState(null);
     const [gpsCoords, setGpsCoords] = useState(null);
     const [searchCity, setSearchCity] = useState('');
+    const [suggestions, setSuggestions] = useState([]);
+    const [geoSearching, setGeoSearching] = useState(false);
+    const [geoNotFound, setGeoNotFound] = useState(false);
+    const searchRef = useRef(null);
+    const inputRef = useRef(null);
+    const dropdownRef = useRef(null);
+    const debounceRef = useRef(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
     const [historyChart, setHistoryChart] = useState({
         labels: Array.from({ length: 30 }, (_, i) => i === 29 ? 'Now' : `${29 - i}h ago`),
         data: Array(30).fill(0)
@@ -105,67 +142,165 @@ const Dashboard = () => {
         return () => clearInterval(timer);
     }, []);
 
-    const fetchManualCityData = async (cityNameStr) => {
-        if (!cityNameStr) return;
+    // ==========================================
+    // SEARCH BAR: Debounced AQICN Station Search
+    // ==========================================
+    const handleSearchInput = (e) => {
+        const val = e.target.value;
+        setSearchCity(val);
+        setGeoNotFound(false);
+        setSuggestions([]);
+
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        if (!val.trim() || val.length < 2) return;
+
+        debounceRef.current = setTimeout(async () => {
+            setGeoSearching(true);
+            try {
+                const results = await searchStations(val);
+                setSuggestions(results);
+                if (results.length === 0) setGeoNotFound(true);
+            } catch (err) {
+                console.error('Station search error:', err);
+            } finally {
+                setGeoSearching(false);
+            }
+        }, 400);
+    };
+
+    // Compute dropdown position from input bounding rect (escapes overflow:hidden)
+    const updateDropdownPos = () => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                // On mobile: stretch to near full-width with side padding
+                setDropdownPos({
+                    top: rect.bottom + 6,
+                    left: 12,
+                    width: window.innerWidth - 24
+                });
+            } else {
+                setDropdownPos({
+                    top: rect.bottom + 8,
+                    left: rect.left,
+                    width: Math.max(rect.width, 340)
+                });
+            }
+        }
+    };
+
+    useEffect(() => {
+        updateDropdownPos();
+        window.addEventListener('resize', updateDropdownPos);
+        window.addEventListener('scroll', updateDropdownPos, true);
+        return () => {
+            window.removeEventListener('resize', updateDropdownPos);
+            window.removeEventListener('scroll', updateDropdownPos, true);
+        };
+    }, []);
+
+    // Close suggestions when clicking outside (check both search input AND portal dropdown)
+    useEffect(() => {
+        const handler = (e) => {
+            const inSearch = searchRef.current && searchRef.current.contains(e.target);
+            const inDropdown = dropdownRef.current && dropdownRef.current.contains(e.target);
+            if (!inSearch && !inDropdown) {
+                setSuggestions([]);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    // Called when user picks a station
+    const fetchByGeocode = async (station) => {
+        setSuggestions([]);
+        setSearchCity(station.name.split(',')[0].trim());
         setLoading(true);
+        setGeoNotFound(false);
         try {
-            const response = await fetch(`${API_URL}/api/analyze-live-city`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ city: cityNameStr })
+            const response = await fetch(`${API_URL}/api/predict-latlon`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lat: station.lat, lon: station.lon })
             });
             const result = await response.json();
-            if (result.error) {
-                alert(result.error);
-                setLoading(false);
-                return;
-            }
-            setCityName(result.city_name);
-            setGpsCoords(null);
-            setStationName(`Manual Sync: ${result.city_name}`);
+            if (result.error) { alert(result.error); return; }
+
+            const locationName = station.name.split(',')[0].trim();
+            setCityName(locationName);
+            setGpsCoords(`${station.lat.toFixed(4)}, ${station.lon.toFixed(4)}`);
+            setStationName(`${station.name}`);
 
             const mappedPollutants = {
-                pm25: result.pollutants.pm25,
-                pm10: result.pollutants.pm10,
-                no2: result.pollutants.no2,
-                so2: result.pollutants.so2,
-                co: result.pollutants.co
+                pm25: result.pollution_data['PM2.5'],
+                pm10: result.pollution_data['PM10'],
+                no2: result.pollution_data['NO2'],
+                so2: result.pollution_data['SO2'],
+                co: result.pollution_data['CO']
             };
             setPollutants(mappedPollutants);
 
             const calculatedAqi = calculateAqiFromPollutants(mappedPollutants);
-            const finalAqi = calculatedAqi || result.live_aqi;
-            setLiveAqi(finalAqi);
+            setLiveAqi(calculatedAqi || station.aqi || (result.live_aqi * 20));
 
-            const cause = result.ai_analysis.dominant_cause || 'Unknown';
-            const citySeed = (result.city_name || cityNameStr).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            const cause = result.predicted_cause?.source || 'Unknown';
+            const seed = locationName.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
             setAnalysis({
                 dominant_cause: cause,
-                confidence: 88 + (citySeed % 11),
-                explanation: "This assessment is generated by matching microscopic particulate distribution against our ML models.",
-                contribution: generateContribution(cause, result.city_name || cityNameStr)
+                confidence: 88 + (seed % 11),
+                explanation: 'Geocoded location matched against real-time satellite and sensor data via our ML pipeline.',
+                contribution: generateContribution(cause, locationName)
             });
 
-            // Clear history chart for manual city as we don't fetch history in this route
-            setHistoryChart({
-                labels: Array.from({ length: 30 }, (_, i) => i === 29 ? 'Now' : `${29 - i}h ago`),
-                data: Array(30).fill(finalAqi)
-            });
+            if (result.history && result.history.length > 0) {
+                const labels = result.history.map((item, index) => {
+                    if (index === result.history.length - 1) return 'Now';
+                    return new Date(item.dt * 1000).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+                });
+                const data = result.history.map(item => {
+                    const h = { pm25: item.components.pm2_5 || 0, pm10: item.components.pm10 || 0 };
+                    const aqi = calculateAqiFromPollutants(h);
+                    return aqi || (item.aqi * 20);
+                });
+                setHistoryChart({ labels, data });
+            }
 
             const token = localStorage.getItem('token');
             if (token) {
                 fetch(`${API_URL}/api/user/history`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ cause: result.ai_analysis.dominant_cause || 'Unknown', aqi: finalAqi, city: result.city_name })
+                    body: JSON.stringify({ cause, aqi: calculatedAqi || (result.live_aqi * 20), city: locationName })
                 }).catch(err => console.error(err));
             }
-        } catch (error) {
-            console.error(error);
-            alert("Ensure backend and ML service are running.");
+        } catch (err) {
+            console.error(err);
+            alert('Failed to fetch data. Ensure backend is running.');
         } finally {
             setLoading(false);
             setSearchCity('');
+        }
+    };
+
+    const handleSearchKeyDown = async (e) => {
+        if (e.key === 'Enter' && searchCity.trim()) {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            setSuggestions([]);
+            setGeoSearching(true);
+            try {
+                const results = await searchStations(searchCity);
+                if (results.length > 0) {
+                    await fetchByGeocode(results[0]);
+                } else {
+                    setGeoNotFound(true);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setGeoSearching(false);
+            }
         }
     };
 
@@ -311,18 +446,141 @@ const Dashboard = () => {
                             {formattedDate} • <strong>{formattedTime}</strong>
                         </p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', background: '#fff', borderRadius: '30px', padding: '8px 15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                            <span style={{ color: '#94a3b8', marginRight: '8px' }}>🔍</span>
-                            <input
-                                type="text"
-                                placeholder="Search City..."
-                                value={searchCity}
-                                onChange={(e) => setSearchCity(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && fetchManualCityData(searchCity)}
-                                style={{ border: 'none', outline: 'none', background: 'transparent', width: '130px', fontSize: '0.9rem', color: '#0f172a' }}
-                            />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'center', width: '100%' }}>
+                        {/* GEOCODING SEARCH BAR */}
+                        <div ref={searchRef} style={{ position: 'relative' }}>
+                            <div
+                                ref={inputRef}
+                                style={{ display: 'flex', alignItems: 'center', background: '#fff', borderRadius: '30px', padding: '8px 15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', minWidth: '200px', flex: '1 1 200px', maxWidth: '320px' }}
+                            >
+                                <span style={{ color: '#94a3b8', marginRight: '8px', fontSize: '1rem' }}>
+                                    {geoSearching ? '⏳' : '🔍'}
+                                </span>
+                                <input
+                                    id="city-search-input"
+                                    type="text"
+                                    placeholder="Search city or station..."
+                                    value={searchCity}
+                                    onChange={(e) => { updateDropdownPos(); handleSearchInput(e); }}
+                                    onFocus={updateDropdownPos}
+                                    onKeyDown={handleSearchKeyDown}
+                                    style={{ border: 'none', outline: 'none', background: 'transparent', width: '100%', flex: 1, fontSize: '0.9rem', color: '#0f172a' }}
+                                    autoComplete="off"
+                                />
+                                {searchCity && (
+                                    <span
+                                        onClick={() => { setSearchCity(''); setSuggestions([]); setGeoNotFound(false); }}
+                                        style={{ cursor: 'pointer', color: '#94a3b8', marginLeft: '6px', fontSize: '1rem', lineHeight: 1 }}
+                                    >✕</span>
+                                )}
+                            </div>
+
+                            {/* PORTAL DROPDOWN — rendered at document.body to escape overflow:hidden */}
+                            {(suggestions.length > 0 || geoNotFound) && createPortal(
+                                <div ref={dropdownRef} style={{
+                                    position: 'fixed',
+                                    top: dropdownPos.top,
+                                    left: dropdownPos.left,
+                                    width: dropdownPos.width,
+                                    background: '#1e293b',
+                                    borderRadius: '16px',
+                                    boxShadow: '0 20px 60px rgba(0,0,0,0.45)',
+                                    zIndex: 99999,
+                                    overflow: 'hidden',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    maxHeight: '380px',
+                                    overflowY: 'auto',
+                                }}>
+                                    {geoNotFound && (
+                                        <div style={{ padding: '16px 18px', color: '#94a3b8', fontSize: '0.85rem', textAlign: 'center' }}>
+                                            No stations found for &ldquo;{searchCity}&rdquo;
+                                        </div>
+                                    )}
+
+                                    {suggestions.length > 0 && (() => {
+                                        const [first, ...rest] = suggestions;
+                                        return (
+                                            <>
+                                                {/* City-level top result */}
+                                                <div
+                                                    onClick={() => fetchByGeocode(first)}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                                        padding: '14px 18px', cursor: 'pointer',
+                                                        borderBottom: rest.length > 0 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+                                                        transition: 'background 0.15s'
+                                                    }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                >
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                                        <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{countryFlag(first.country)}</span>
+                                                        <span style={{
+                                                            fontSize: '0.92rem', fontWeight: '600', color: '#f1f5f9',
+                                                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                                        }}>{first.name}</span>
+                                                    </div>
+                                                    {first.aqi > 0 && (
+                                                        <span style={{
+                                                            background: getAqiBadgeColor(first.aqi).bg,
+                                                            color: '#fff',
+                                                            padding: '4px 13px', borderRadius: '20px',
+                                                            fontSize: '0.85rem', fontWeight: '700',
+                                                            flexShrink: 0, marginLeft: '12px'
+                                                        }}>{first.aqi}</span>
+                                                    )}
+                                                </div>
+
+                                                {/* Stations section */}
+                                                {rest.length > 0 && (
+                                                    <>
+                                                        <div style={{
+                                                            padding: '10px 18px 4px',
+                                                            fontSize: '0.72rem', fontWeight: '700',
+                                                            color: '#475569', letterSpacing: '0.1em', textTransform: 'uppercase'
+                                                        }}>Stations</div>
+                                                        {rest.map((s, i) => (
+                                                            <div
+                                                                key={s.uid ?? i}
+                                                                onClick={() => fetchByGeocode(s)}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center',
+                                                                    justifyContent: 'space-between',
+                                                                    padding: '11px 18px', cursor: 'pointer',
+                                                                    borderTop: '1px solid rgba(255,255,255,0.05)',
+                                                                    transition: 'background 0.15s'
+                                                                }}
+                                                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                                                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                                            >
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                                                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{countryFlag(s.country)}</span>
+                                                                    <span style={{
+                                                                        fontSize: '0.85rem', color: '#cbd5e1',
+                                                                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                                                    }}>{s.name}</span>
+                                                                </div>
+                                                                {s.aqi > 0 && (
+                                                                    <span style={{
+                                                                        background: getAqiBadgeColor(s.aqi).bg,
+                                                                        color: '#fff',
+                                                                        padding: '3px 11px', borderRadius: '14px',
+                                                                        fontSize: '0.82rem', fontWeight: '700',
+                                                                        flexShrink: 0, marginLeft: '12px'
+                                                                    }}>{s.aqi}</span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>,
+                                document.body
+                            )}
                         </div>
+
                         <button
                             onClick={fetchLiveLocationData}
                             className="btn-live-sync"
@@ -431,7 +689,7 @@ const Dashboard = () => {
                     {/* TREND CHART CARD (Col 3) */}
                     <div className="bento-card col-span-3">
                         <h3>📈 Historical Trajectory</h3>
-                        <div style={{ height: '220px', width: '100%', marginTop: '10px' }}>
+                        <div style={{ height: '180px', width: '100%', marginTop: '10px' }}>
                             <Line
                                 data={lineChartData}
                                 options={{
@@ -451,7 +709,7 @@ const Dashboard = () => {
                 {/* EXTRA CONTENT SECTION AT BOTTOM */}
                 <div className="bottom-content-section" style={{ marginTop: '40px' }}>
                     <h2 style={{ fontSize: '1.5rem', color: '#0f172a', marginBottom: '20px', fontWeight: '700' }}>Deep Dive Insights</h2>
-                    <div className="bento-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                    <div className="bento-grid">
 
                         {/* Source Tracking Card */}
                         <div className="bento-card col-span-1" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)' }}>

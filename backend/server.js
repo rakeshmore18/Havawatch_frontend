@@ -31,7 +31,8 @@ const JWT_SECRET = "havawatch_super_secret_key_2026";
 // ==========================================
 // MONGODB CONNECTION
 // ==========================================
-mongoose.connect('mongodb+srv://rakesh18:180805@havawatch.kblvoku.mongodb.net/?appName=Havawatch')
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://mahiresahil_db_user:rakesh_more@cluster0.lvkazyy.mongodb.net/havawatch?retryWrites=true&w=majority&appName=Cluster0';
+mongoose.connect(MONGO_URI)
     .then(() => console.log("✅ MongoDB Connected Successfully"))
     .catch(err => console.log("❌ MongoDB Connection Error: ", err));
 
@@ -53,16 +54,37 @@ const Alert = mongoose.model('Alert', alertSchema);
 app.post('/api/signup', async (req, res) => {
     try {
         const { fullName, city, email, password } = req.body;
-        let existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ message: "User already exists." });
+
+        // --- Input presence check ---
+        if (!fullName || !city || !email || !password) {
+            return res.status(400).json({ message: "All fields (fullName, city, email, password) are required." });
         }
+
+        // --- Password strength: min 8 chars, 1 uppercase, 1 digit, 1 special character ---
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&_#\-]).{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({
+                message: "Password must be at least 8 characters and include at least 1 uppercase letter, 1 number, and 1 special character (@$!%*?&_#-)."
+            });
+        }
+
+        let existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+        if (existingUser) {
+            return res.status(400).json({ message: "An account with this email already exists." });
+        }
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
         const newUser = new User({ fullName, city, email, password: hashedPassword });
         await newUser.save();
         res.status(201).json({ message: "Account created successfully!" });
     } catch (error) {
+        // Return Mongoose validation error messages to the client
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(e => e.message);
+            return res.status(400).json({ message: messages.join(' | ') });
+        }
+        console.error("Signup Error:", error.message);
         res.status(500).json({ message: "Server error during signup." });
     }
 });
@@ -89,12 +111,83 @@ app.post('/api/login', async (req, res) => {
 // ==========================================
 // 2. NEW: LIVE AQICN + AI ANALYSIS ROUTE (For Dashboard UI)
 // ==========================================
+
+// ==========================================
+// STATION SEARCH ROUTE (AQICN → Nominatim fallback)
+// ==========================================
+app.get('/api/search-stations', async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.trim().length < 2) return res.status(400).json({ error: 'Query too short.' });
+
+        const AQICN_TOKEN = "669ee00d81d1573b034d4a135a34b6a012475a4c";
+        let stations = [];
+
+        // --- Try AQICN search first ---
+        try {
+            const aqiUrl = `https://api.waqi.info/search/?token=${AQICN_TOKEN}&keyword=${encodeURIComponent(q)}`;
+            const aqiRes = await axios.get(aqiUrl);
+            if (aqiRes.data.status === 'ok' && Array.isArray(aqiRes.data.data)) {
+                stations = aqiRes.data.data
+                    .filter(s => s.station && s.station.geo)
+                    .slice(0, 8)
+                    .map(s => ({
+                        uid: s.uid,
+                        name: s.station.name,
+                        aqi: (s.aqi && s.aqi !== '-') ? (parseInt(s.aqi) || 0) : 0,
+                        country: s.station.country || '',
+                        lat: s.station.geo[0],
+                        lon: s.station.geo[1],
+                    }));
+            } else {
+                console.warn('AQICN search failed:', aqiRes.data);
+            }
+        } catch (aqiErr) {
+            console.warn('AQICN search error, falling back to Nominatim:', aqiErr.message);
+        }
+
+        // --- Fallback: Nominatim geocoding if AQICN gave nothing ---
+        if (stations.length === 0) {
+            const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`;
+            const nomRes = await axios.get(nomUrl, {
+                headers: { 'User-Agent': 'HavaWatch-AQI-App/1.0', 'Accept-Language': 'en' }
+            });
+
+            stations = nomRes.data
+                .filter(p => p.lat && p.lon)
+                .slice(0, 6)
+                .map((p, i) => {
+                    // Extract country code from address details
+                    const cc = (p.address && p.address.country_code)
+                        ? p.address.country_code.toUpperCase()
+                        : '';
+                    const parts = p.display_name.split(',');
+                    const label = parts.slice(0, 2).join(',').trim();
+                    return {
+                        uid: i,
+                        name: label,
+                        aqi: 0,          // no AQI available from geocoder
+                        country: cc,
+                        lat: Number(p.lat),
+                        lon: Number(p.lon),
+                    };
+                });
+        }
+
+        res.json({ stations });
+    } catch (error) {
+        console.error('Station Search Error:', error.message);
+        res.status(500).json({ error: 'Failed to search stations.' });
+    }
+});
+
 app.post('/api/analyze-live-city', async (req, res) => {
+
     try {
         const { city } = req.body;
 
         // 🛑 PASTE YOUR AQICN TOKEN HERE 🛑
-        const AQICN_TOKEN = "59a8f55e80d1f1554a362b6bc12785f9";
+        const AQICN_TOKEN = "669ee00d81d1573b034d4a135a34b6a012475a4c";
 
         // Fetch live data from AQICN
         const waqiUrl = `https://api.waqi.info/feed/${city}/?token=${AQICN_TOKEN}`;

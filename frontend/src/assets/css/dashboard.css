@@ -407,20 +407,182 @@
 }
 
 /* ==========================================
-   8. MEDIA QUERIES (Mobile Responsiveness)
+   8. MEDIA QUERIES (Responsive Design)
 ========================================== */
+
+/* ----- Tablets (1200px and below) ----- */
 @media (max-width: 1200px) {
     .bento-grid { grid-template-columns: repeat(2, 1fr); }
-    .col-span-1, .col-span-2, .col-span-3, .col-span-4 { grid-column: span 2; }
+    .col-span-2 { grid-column: span 2; }
+    .col-span-3 { grid-column: span 2; }
+    .col-span-4 { grid-column: span 2; }
 }
 
+/* ----- Mobile (768px and below) ----- */
 @media (max-width: 768px) {
-    .dashboard-wrapper { flex-direction: column; height: auto; }
-    .sidebar { width: 100%; padding: 20px; flex-direction: row; justify-content: space-between; align-items: center; }
-    .sidebar nav { display: none; }
-    .sidebar .logo { margin-bottom: 0; }
-    .top-bar-premium { flex-direction: column; gap: 20px; text-align: center; }
-    .bento-grid { grid-template-columns: 1fr; }
-    .col-span-1, .col-span-2, .col-span-3, .col-span-4 { grid-column: span 1; }
-    .ai-inner { flex-direction: column; }
+    /* --- Layout --- */
+    .dashboard-wrapper {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+    }
+
+    /* --- Sidebar → mobile top bar --- */
+    .sidebar {
+        width: 100%;
+        padding: 14px 20px;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .sidebar .logo {
+        margin-bottom: 0;
+        font-size: 1.3rem;
+    }
+    .sidebar nav {
+        display: none;
+    }
+
+    /* --- Main Content --- */
+    .content {
+        padding: 16px;
+        padding-bottom: 40px;
+        overflow-y: auto;
+    }
+
+    /* --- Top Bar / Header --- */
+    .top-bar-premium {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+        padding: 16px 18px;
+        border-radius: 18px;
+        margin-bottom: 20px;
+    }
+    .greeting-section h1 {
+        font-size: 1.3rem;
+        justify-content: center;
+    }
+    .greeting-section p {
+        font-size: 0.85rem;
+        justify-content: center;
+    }
+
+    /* --- Bento Grid → single column --- */
+    .bento-grid {
+        grid-template-columns: 1fr;
+        grid-gap: 16px;
+    }
+    .col-span-1, .col-span-2, .col-span-3, .col-span-4 {
+        grid-column: span 1;
+    }
+
+    /* --- Cards --- */
+    .bento-card {
+        padding: 20px;
+        border-radius: 20px;
+    }
+    .bento-card h3 {
+        font-size: 0.95rem;
+        margin-bottom: 14px;
+    }
+
+    /* --- AQI Display --- */
+    .aqi-value {
+        font-size: 3rem !important;
+    }
+    .pollutant-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .p-box {
+        padding: 10px 8px;
+        border-radius: 12px;
+    }
+    .p-box span {
+        font-size: 0.7rem;
+        margin-bottom: 4px;
+    }
+    .p-box strong {
+        font-size: 1rem;
+    }
+
+    /* --- Health Card --- */
+    .health-content {
+        gap: 14px;
+    }
+    .health-icon {
+        font-size: 2.5rem;
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+    }
+    .health-text h2 {
+        font-size: 1.2rem;
+        margin-bottom: 6px;
+    }
+    .health-text p {
+        font-size: 0.85rem;
+    }
+
+    /* --- AI Analysis --- */
+    .ai-inner {
+        flex-direction: column;
+        gap: 14px;
+    }
+    .ai-text-content h4 {
+        font-size: 1.15rem;
+    }
+    .explanation {
+        font-size: 0.85rem;
+        padding: 12px;
+    }
+
+    /* --- Sync Button --- */
+    .btn-live-sync {
+        padding: 12px 20px;
+        font-size: 0.9rem;
+        border-radius: 12px;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* ----- Small phones (480px and below) ----- */
+@media (max-width: 480px) {
+    .content {
+        padding: 12px;
+        padding-bottom: 32px;
+    }
+    .top-bar-premium {
+        padding: 14px;
+        border-radius: 14px;
+        margin-bottom: 14px;
+    }
+    .greeting-section h1 {
+        font-size: 1.15rem;
+    }
+    .bento-grid {
+        grid-gap: 12px;
+    }
+    .bento-card {
+        padding: 16px;
+        border-radius: 16px;
+    }
+    .aqi-value {
+        font-size: 2.5rem !important;
+    }
+    .health-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    .btn-live-sync {
+        padding: 11px 16px;
+        font-size: 0.85rem;
+    }
 }
