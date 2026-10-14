@@ -1,11 +1,13 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+require('dotenv').config();
 const User = require('./models/User');
 
 const app = express();
@@ -14,7 +16,12 @@ const ML_URL = process.env.NODE_ENV === 'production' ? 'https://havawatch-ml.ver
 
 // Middleware
 app.use(express.json());
-const allowedOrigins = ["https://havawatch.vercel.app", "http://localhost:5173", "http://127.0.0.1:5173"];
+const allowedOrigins = [
+    "https://havawatch.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    process.env.RENDER_EXTERNAL_URL // auto-set by Render
+].filter(Boolean);
 app.use(cors({ origin: allowedOrigins }));
 
 // ==========================================
@@ -22,11 +29,11 @@ app.use(cors({ origin: allowedOrigins }));
 // ==========================================
 const server = http.createServer(app);
 const io = new Server(server, {
-    cors: { origin: "https://havawatch.vercel.app" } // Connects to your Vite React frontend
+    cors: { origin: allowedOrigins }
 });
 
 // Secret key for JWT
-const JWT_SECRET = "havawatch_super_secret_key_2026";
+const JWT_SECRET = process.env.JWT_SECRET || "havawatch_super_secret_key_2026";
 
 // ==========================================
 // MONGODB CONNECTION
@@ -435,9 +442,22 @@ app.get('/api/user/history', authenticateToken, async (req, res) => {
 });
 
 // ==========================================
+// SERVE FRONTEND (Production - Render)
+// ==========================================
+if (process.env.NODE_ENV === 'production') {
+    // Serve the built React frontend
+    app.use(express.static(path.join(__dirname, '..', 'frontend', 'dist')));
+
+    // For any route not handled by API, serve index.html (SPA fallback)
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
+    });
+}
+
+// ==========================================
 // START SERVER
 // ==========================================
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-    console.log(`🚀 HavaWatch Backend Server running on http://localhost:${PORT}`);
+    console.log(`🚀 HavaWatch Backend Server running on port ${PORT}`);
 });

@@ -1,19 +1,19 @@
 {
-  "name": "aqi",
+  "name": "havawatch",
   "version": "1.0.0",
-  "main": "index.js",
- "scripts": {
-  "dev": "concurrently \"npm run backend\" \"npm run frontend\" \"npm run ml\"",
-  "start": "concurrently \"npm run backend\" \"npm run frontend\" \"npm run ml\"",
-  "backend": "cd backend && npm run dev",
-  "frontend": "cd frontend && npm run dev",
-  "ml": "cd ml_service && python app.py"
-},
-
+  "main": "backend/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && node server.js",
+    "render-build": "cd backend && npm install && cd ../frontend && npm install && npm run build"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "HavaWatch - AI-Powered Air Quality Monitoring System",
   "devDependencies": {
     "concurrently": "^9.2.1"
   }
